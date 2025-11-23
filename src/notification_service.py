@@ -37,10 +37,17 @@ class NotificationService:
             
             msg.attach(MIMEText(body, 'html'))
 
-            with smtplib.SMTP(self.host, self.port) as server:
-                server.starttls()
-                server.login(self.user, self.password)
-                server.send_message(msg)
+            if self.port == 465:
+                # Use SSL
+                with smtplib.SMTP_SSL(self.host, self.port) as server:
+                    server.login(self.user, self.password)
+                    server.send_message(msg)
+            else:
+                # Use STARTTLS (default for 587)
+                with smtplib.SMTP(self.host, self.port) as server:
+                    server.starttls()
+                    server.login(self.user, self.password)
+                    server.send_message(msg)
                 
             print(f"Error alert sent to {self.alert_email}")
             

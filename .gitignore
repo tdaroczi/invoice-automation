@@ -1,0 +1,17 @@
+# Environment variables
+.env
+
+# Python
+__pycache__/
+*.py[cod]
+venv/
+.pytest_cache/
+
+# Google Service Account Key
+*.json
+
+# Downloads folder
+downloads/
+
+# OS specific
+.DS_Store

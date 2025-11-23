@@ -30,7 +30,7 @@ class SheetsService:
 
     def log(self, level: str, message: str, context: str = ""):
         """
-        Appends a log entry to the configured Google Sheet.
+        Appends a log entry to the configured Google Sheet (Log sheet).
         Columns: Timestamp, Level, Message, Context
         """
         if not self.service:
@@ -39,17 +39,50 @@ class SheetsService:
         timestamp = datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S")
         values = [[timestamp, level, message, context]]
         
-        body = {
-            'values': values
-        }
+        self._append_row("Log!A:D", values)
+
+    def add_invoice(self, data: dict):
+        """
+        Appends invoice data to the 'Invoices' sheet.
+        Expected columns:
+        1. Dokumentum típusa
+        2. Díjbekérő / Számla száma
+        3. Kiállító neve
+        4. Kiállító adószáma
+        5. Díjbekérő kelte
+        6. Fizetési határidő
+        7. Bruttó összeg
+        8. Megjegyzés / Közlemény
+        9. Vevő neve
+        """
+        if not self.service:
+            return
+
+        values = [[
+            data.get('type', ''),
+            data.get('invoice_number', ''),
+            data.get('vendor', ''),
+            data.get('vendor_tax_id', ''),
+            data.get('issue_date', ''),
+            data.get('due_date', ''),
+            data.get('amount', ''),
+            data.get('comment', ''), # Not extracted yet, but placeholder
+            data.get('buyer', '')
+        ]]
         
+        # Append to the first sheet (or specific sheet if named)
+        # Assuming the main sheet is the first one or named 'Munkalap1' or similar.
+        # We'll use "A:I" which usually appends to the first sheet's first empty row.
+        self._append_row("A:I", values)
+
+    def _append_row(self, range_name: str, values: list):
         try:
+            body = {'values': values}
             self.service.spreadsheets().values().append(
                 spreadsheetId=self.spreadsheet_id,
-                range="A:D", # Append to first 4 columns
+                range=range_name,
                 valueInputOption="USER_ENTERED",
                 body=body
             ).execute()
-            # print(f"Logged to Sheets: {message}") # Optional: avoid cluttering console
         except Exception as e:
-            print(f"Failed to log to Sheets: {e}")
+            print(f"Failed to append to Sheets ({range_name}): {e}")

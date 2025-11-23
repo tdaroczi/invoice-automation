@@ -3,10 +3,18 @@ import re
 from typing import Dict, Optional
 
 class ExtractionService:
-    def extract_data(self, pdf_path: str) -> Dict[str, Optional[str]]:
+    def extract_data(self, pdf_path):
         """
-        Extracts Vendor, Date, and Amount from a PDF invoice.
-        Returns a dictionary with keys: 'vendor', 'date', 'amount'.
+        Extracts key data from the PDF invoice.
+        Returns a dictionary with:
+        - type (Számla / Díjbekérő)
+        - invoice_number
+        - vendor
+        - vendor_tax_id
+        - issue_date
+        - due_date
+        - amount
+        - buyer
         """
         text = ""
         try:
@@ -14,40 +22,21 @@ class ExtractionService:
                 for page in pdf.pages:
                     text += page.extract_text() + "\n"
         except Exception as e:
-            print(f"Error reading PDF {pdf_path}: {e}")
-            return {'vendor': None, 'date': None, 'amount': None}
+            print(f"Error reading PDF: {e}")
+            return {}
 
-        return {
-            'vendor': self._extract_vendor(text),
-            'date': self._extract_date(text),
-            'amount': self._extract_amount(text)
+        data = {
+            "type": "Számla", # Default
+            "invoice_number": "",
+            "vendor": "",
+            "vendor_tax_id": "",
+            "issue_date": "",
+            "due_date": "",
+            "amount": "",
+            "buyer": "",
+            "comment": ""
         }
 
-    def _extract_date(self, text: str) -> Optional[str]:
-        # Regex for common date formats: YYYY.MM.DD, YYYY-MM-DD, DD/MM/YYYY
-        # Hungarian format often: 2023.10.25. or 2023. 10. 25.
-        date_patterns = [
-            r'\b\d{4}\.\s?\d{2}\.\s?\d{2}\.?\b',  # 2023.10.25.
-            r'\b\d{4}-\d{2}-\d{2}\b',             # 2023-10-25
-            r'\b\d{2}/\d{2}/\d{4}\b'              # 25/10/2023
-        ]
-        
-        for pattern in date_patterns:
-            match = re.search(pattern, text)
-            if match:
-                return match.group(0).strip()
-        return None
-
-    def _extract_amount(self, text: str) -> Optional[float]:
-        # Look for amounts with currency indicators
-        # Patterns: "1 234 Ft", "1.234 HUF", "Total: 1234"
-        # We want the largest number usually, or the one near "Total" / "Összesen"
-        
-        # Simple heuristic: find all numbers followed by Ft or HUF
-        # Handle spaces as thousand separators and commas/dots as decimals
-        
-        # Regex to find number-like strings followed by Ft/HUF
-        # Groups: 1=Number part
         amount_pattern = r'([\d\s\.,]+)\s*(?:Ft|HUF)'
         matches = re.findall(amount_pattern, text, re.IGNORECASE)
         

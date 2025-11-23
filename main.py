@@ -5,8 +5,10 @@ import traceback
 from dotenv import load_dotenv
 from src.email_service import EmailService
 from src.drive_service import DriveService
+from src.email_service import EmailService
+from src.drive_service import DriveService
 from src.extraction_service import ExtractionService
-from src.notion_service import NotionService
+# from src.notion_service import NotionService # Deprecated
 from src.notification_service import NotificationService
 from src.sheets_service import SheetsService
 
@@ -24,7 +26,7 @@ def main():
         email_service = EmailService()
         drive_service = DriveService()
         extraction_service = ExtractionService()
-        notion_service = NotionService()
+        # notion_service = NotionService() # Deprecated
         sheets_service = SheetsService()
         
         print("Services initialized successfully.")
@@ -64,8 +66,8 @@ def main():
                                         data['file_url'] = file_url
                                         print(f"    Extracted: {data}")
                                         
-                                        # 3. Add to Notion
-                                        notion_service.add_invoice(data)
+                                        # 3. Add to Sheets (formerly Notion)
+                                        sheets_service.add_invoice(data)
                                         
                                         sheets_service.log("INFO", f"Successfully processed invoice: {data.get('vendor')} - {data.get('amount')}", context="Invoice Success")
                                         

@@ -1,22 +1,48 @@
 import os
+import json
 from google.oauth2 import service_account
 from googleapiclient.discovery import build
 from googleapiclient.http import MediaFileUpload
 
 class DriveService:
-    SCOPES = ['https://www.googleapis.com/auth/drive.file']
+    SCOPES = ['https://www.googleapis.com/auth/drive']
 
     def __init__(self):
-        self.service_account_file = os.getenv("GOOGLE_SERVICE_ACCOUNT_FILE")
+        self.service_account_info = os.getenv("GOOGLE_SERVICE_ACCOUNT_FILE")
         self.folder_id = os.getenv("GOOGLE_DRIVE_FOLDER_ID")
         
-        if not self.service_account_file or not self.folder_id:
-            raise ValueError("Google Drive configuration missing.")
-            
-        self.creds = service_account.Credentials.from_service_account_file(
-            self.service_account_file, scopes=self.SCOPES
-        )
-        self.service = build('drive', 'v3', credentials=self.creds)
+        if not self.service_account_info:
+             raise ValueError("GOOGLE_SERVICE_ACCOUNT_FILE environment variable not set.")
+        if not self.folder_id:
+            raise ValueError("GOOGLE_DRIVE_FOLDER_ID environment variable not set.")
+
+        try:
+            # First, try to treat it as a file path
+            if os.path.exists(self.service_account_info):
+                self.creds = service_account.Credentials.from_service_account_file(
+                    self.service_account_info, scopes=self.SCOPES
+                )
+            else:
+                # If file doesn't exist, try to parse the variable content as JSON
+                try:
+                    info = json.loads(self.service_account_info)
+                    self.creds = service_account.Credentials.from_service_account_info(
+                        info, scopes=self.SCOPES
+                    )
+                except json.JSONDecodeError:
+                    # Try fallback variable GOOGLE_SERVICE_ACCOUNT_JSON
+                    json_content = os.getenv("GOOGLE_SERVICE_ACCOUNT_JSON")
+                    if json_content:
+                        info = json.loads(json_content)
+                        self.creds = service_account.Credentials.from_service_account_info(
+                            info, scopes=self.SCOPES
+                        )
+                    else:
+                        raise ValueError(f"File not found and content is not valid JSON: {self.service_account_info}")
+
+            self.service = build('drive', 'v3', credentials=self.creds)
+        except Exception as e:
+            raise ValueError(f"Failed to authenticate with Google Drive: {e}")
 
     def upload_file(self, file_path: str) -> str:
         """

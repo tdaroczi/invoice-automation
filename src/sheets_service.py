@@ -1,4 +1,5 @@
 import os
+import json
 import datetime
 from google.oauth2 import service_account
 from googleapiclient.discovery import build
@@ -7,22 +8,44 @@ class SheetsService:
     SCOPES = ['https://www.googleapis.com/auth/spreadsheets']
 
     def __init__(self):
-        self.service_account_file = os.getenv("GOOGLE_SERVICE_ACCOUNT_FILE")
+        self.service_account_info = os.getenv("GOOGLE_SERVICE_ACCOUNT_FILE")
         self.spreadsheet_id = os.getenv("GOOGLE_SHEET_ID")
         
-        if not self.service_account_file:
-            # Try to read from content variable if file path not set (for cloud deployment)
-            pass 
-            
         if not self.spreadsheet_id:
             print("Warning: GOOGLE_SHEET_ID not set. Logging to Sheets disabled.")
             self.service = None
             return
 
         try:
-            self.creds = service_account.Credentials.from_service_account_file(
-                self.service_account_file, scopes=self.SCOPES
-            )
+            creds = None
+            # First, try to treat it as a file path
+            if self.service_account_info and os.path.exists(self.service_account_info):
+                creds = service_account.Credentials.from_service_account_file(
+                    self.service_account_info, scopes=self.SCOPES
+                )
+            else:
+                # If file doesn't exist, try to parse the variable content as JSON
+                try:
+                    if self.service_account_info:
+                        info = json.loads(self.service_account_info)
+                        creds = service_account.Credentials.from_service_account_info(
+                            info, scopes=self.SCOPES
+                        )
+                except json.JSONDecodeError:
+                     # Try fallback variable GOOGLE_SERVICE_ACCOUNT_JSON
+                    json_content = os.getenv("GOOGLE_SERVICE_ACCOUNT_JSON")
+                    if json_content:
+                        info = json.loads(json_content)
+                        creds = service_account.Credentials.from_service_account_info(
+                            info, scopes=self.SCOPES
+                        )
+
+            if not creds:
+                 print("Warning: Could not authenticate SheetsService (no valid creds found).")
+                 self.service = None
+                 return
+
+            self.creds = creds
             self.service = build('sheets', 'v4', credentials=self.creds)
         except Exception as e:
             print(f"Error initializing SheetsService: {e}")

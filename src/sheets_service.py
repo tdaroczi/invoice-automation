@@ -9,6 +9,7 @@ class SheetsService:
 
     def __init__(self):
         self.service_account_info = os.getenv("GOOGLE_SERVICE_ACCOUNT_FILE")
+        self.service_account_json = os.getenv("GOOGLE_SERVICE_ACCOUNT_JSON")
         self.spreadsheet_id = os.getenv("GOOGLE_SHEET_ID")
         
         if not self.spreadsheet_id:
@@ -18,29 +19,35 @@ class SheetsService:
 
         try:
             creds = None
-            # First, try to treat it as a file path
-            if self.service_account_info and os.path.exists(self.service_account_info):
-                creds = service_account.Credentials.from_service_account_file(
-                    self.service_account_info, scopes=self.SCOPES
-                )
-            else:
-                # If file doesn't exist, try to parse the variable content as JSON
+            
+            # 1. Try GOOGLE_SERVICE_ACCOUNT_JSON (Priority)
+            if self.service_account_json:
                 try:
-                    if self.service_account_info:
+                    info = json.loads(self.service_account_json)
+                    creds = service_account.Credentials.from_service_account_info(
+                        info, scopes=self.SCOPES
+                    )
+                except json.JSONDecodeError:
+                    pass
+
+            # 2. Try GOOGLE_SERVICE_ACCOUNT_FILE (Fallback)
+            if not creds and self.service_account_info:
+                # First, try to treat it as a file path
+                if os.path.exists(self.service_account_info):
+                    creds = service_account.Credentials.from_service_account_file(
+                        self.service_account_info, scopes=self.SCOPES
+                    )
+                else:
+                    # If file doesn't exist, try to parse the variable content as JSON
+                    try:
                         # Clean the string
                         clean_info = self.service_account_info.strip().strip("'").strip('"')
                         info = json.loads(clean_info)
                         creds = service_account.Credentials.from_service_account_info(
                             info, scopes=self.SCOPES
                         )
-                except json.JSONDecodeError:
-                     # Try fallback variable GOOGLE_SERVICE_ACCOUNT_JSON
-                    json_content = os.getenv("GOOGLE_SERVICE_ACCOUNT_JSON")
-                    if json_content:
-                        info = json.loads(json_content)
-                        creds = service_account.Credentials.from_service_account_info(
-                            info, scopes=self.SCOPES
-                        )
+                    except json.JSONDecodeError:
+                        pass
 
             if not creds:
                  print("Warning: Could not authenticate SheetsService (no valid creds found).")

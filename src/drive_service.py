@@ -9,44 +9,55 @@ class DriveService:
 
     def __init__(self):
         self.service_account_info = os.getenv("GOOGLE_SERVICE_ACCOUNT_FILE")
+        self.service_account_json = os.getenv("GOOGLE_SERVICE_ACCOUNT_JSON")
         self.folder_id = os.getenv("GOOGLE_DRIVE_FOLDER_ID")
         
-        if not self.service_account_info:
-             raise ValueError("GOOGLE_SERVICE_ACCOUNT_FILE environment variable not set.")
         if not self.folder_id:
             raise ValueError("GOOGLE_DRIVE_FOLDER_ID environment variable not set.")
 
         try:
-            # First, try to treat it as a file path
-            if os.path.exists(self.service_account_info):
-                self.creds = service_account.Credentials.from_service_account_file(
-                    self.service_account_info, scopes=self.SCOPES
-                )
-            else:
-                # If file doesn't exist, try to parse the variable content as JSON
+            self.creds = None
+            
+            # 1. Try GOOGLE_SERVICE_ACCOUNT_JSON (Priority)
+            if self.service_account_json:
                 try:
-                    # Clean the string: remove whitespace and potential surrounding quotes
-                    clean_info = self.service_account_info.strip().strip("'").strip('"')
-                    
-                    # Debug: Print info about the string (safe version)
-                    print(f"DEBUG: Service Account Info Length: {len(clean_info)}")
-                    print(f"DEBUG: Starts with: {clean_info[:10]}...")
-                    
-                    info = json.loads(clean_info)
+                    info = json.loads(self.service_account_json)
                     self.creds = service_account.Credentials.from_service_account_info(
                         info, scopes=self.SCOPES
                     )
+                    print("DEBUG: Authenticated using GOOGLE_SERVICE_ACCOUNT_JSON")
                 except json.JSONDecodeError as e:
-                    # Try fallback variable GOOGLE_SERVICE_ACCOUNT_JSON
-                    json_content = os.getenv("GOOGLE_SERVICE_ACCOUNT_JSON")
-                    if json_content:
-                        info = json.loads(json_content)
+                    print(f"Warning: GOOGLE_SERVICE_ACCOUNT_JSON is invalid JSON: {e}")
+
+            # 2. Try GOOGLE_SERVICE_ACCOUNT_FILE (Fallback)
+            if not self.creds and self.service_account_info:
+                # First, try to treat it as a file path
+                if os.path.exists(self.service_account_info):
+                    self.creds = service_account.Credentials.from_service_account_file(
+                        self.service_account_info, scopes=self.SCOPES
+                    )
+                    print("DEBUG: Authenticated using GOOGLE_SERVICE_ACCOUNT_FILE (path)")
+                else:
+                    # If file doesn't exist, try to parse the variable content as JSON
+                    try:
+                        # Clean the string: remove whitespace and potential surrounding quotes
+                        clean_info = self.service_account_info.strip().strip("'").strip('"')
+                        
+                        # Debug: Print info about the string (safe version)
+                        print(f"DEBUG: Service Account Info Length: {len(clean_info)}")
+                        if len(clean_info) < 20:
+                             print(f"DEBUG: Starts with: {clean_info}...")
+                        
+                        info = json.loads(clean_info)
                         self.creds = service_account.Credentials.from_service_account_info(
                             info, scopes=self.SCOPES
                         )
-                    else:
-                        print(f"JSON Decode Error: {e}")
-                        raise ValueError(f"File not found and content is not valid JSON. Length: {len(self.service_account_info)}")
+                        print("DEBUG: Authenticated using GOOGLE_SERVICE_ACCOUNT_FILE (content)")
+                    except json.JSONDecodeError as e:
+                         print(f"JSON Decode Error in FILE variable: {e}")
+
+            if not self.creds:
+                 raise ValueError("Could not authenticate. Neither GOOGLE_SERVICE_ACCOUNT_JSON nor GOOGLE_SERVICE_ACCOUNT_FILE provided valid credentials.")
 
             self.service = build('drive', 'v3', credentials=self.creds)
         except Exception as e:

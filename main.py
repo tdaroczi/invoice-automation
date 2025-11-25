@@ -72,7 +72,7 @@ def main():
                                         sheets_service.log("INFO", f"Successfully processed invoice: {data.get('vendor')} - {data.get('amount')}", context="Invoice Success")
                                         
                                     # 4. Mark as read
-                                    # email_service.mark_as_read(msg.uid)
+                                    email_service.mark_as_read(msg.uid)
                                     print(f"Finished processing email: {msg.subject}")
                                     
                                 except Exception as e:

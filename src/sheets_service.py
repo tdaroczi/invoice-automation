@@ -71,7 +71,7 @@ class SheetsService:
         timestamp = datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S")
         values = [[timestamp, level, message, context]]
         
-        self._append_row("Log!A:D", values)
+        self._append_row("log!A:D", values)
 
     def add_invoice(self, data: dict):
         """

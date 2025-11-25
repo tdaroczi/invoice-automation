@@ -27,7 +27,9 @@ class SheetsService:
                 # If file doesn't exist, try to parse the variable content as JSON
                 try:
                     if self.service_account_info:
-                        info = json.loads(self.service_account_info)
+                        # Clean the string
+                        clean_info = self.service_account_info.strip().strip("'").strip('"')
+                        info = json.loads(clean_info)
                         creds = service_account.Credentials.from_service_account_info(
                             info, scopes=self.SCOPES
                         )

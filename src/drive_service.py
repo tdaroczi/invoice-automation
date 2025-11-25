@@ -25,11 +25,18 @@ class DriveService:
             else:
                 # If file doesn't exist, try to parse the variable content as JSON
                 try:
-                    info = json.loads(self.service_account_info)
+                    # Clean the string: remove whitespace and potential surrounding quotes
+                    clean_info = self.service_account_info.strip().strip("'").strip('"')
+                    
+                    # Debug: Print info about the string (safe version)
+                    print(f"DEBUG: Service Account Info Length: {len(clean_info)}")
+                    print(f"DEBUG: Starts with: {clean_info[:10]}...")
+                    
+                    info = json.loads(clean_info)
                     self.creds = service_account.Credentials.from_service_account_info(
                         info, scopes=self.SCOPES
                     )
-                except json.JSONDecodeError:
+                except json.JSONDecodeError as e:
                     # Try fallback variable GOOGLE_SERVICE_ACCOUNT_JSON
                     json_content = os.getenv("GOOGLE_SERVICE_ACCOUNT_JSON")
                     if json_content:
@@ -38,7 +45,8 @@ class DriveService:
                             info, scopes=self.SCOPES
                         )
                     else:
-                        raise ValueError(f"File not found and content is not valid JSON: {self.service_account_info}")
+                        print(f"JSON Decode Error: {e}")
+                        raise ValueError(f"File not found and content is not valid JSON. Length: {len(self.service_account_info)}")
 
             self.service = build('drive', 'v3', credentials=self.creds)
         except Exception as e:
